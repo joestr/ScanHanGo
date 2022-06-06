@@ -9,7 +9,9 @@ import (
 )
 
 func main() {
-	GetHandlers()
+	handlers := GetHandlersRaw()
+
+	fmt.Printf("%s\n", handlers)
 }
 
 func main2() {
