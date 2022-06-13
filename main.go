@@ -15,51 +15,73 @@ var f MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Message) {
 }
 
 func main() {
+
 	inputDevices := GetInputDevices()
 
+	fmt.Println("###   Registered Devices   ###")
 	for i := range inputDevices {
-		fmt.Printf("Name=%s\n", inputDevices[i].name)
-		fmt.Printf("Phys=%s\n", inputDevices[i].phys)
-		for j := range inputDevices[i].handlers {
-			fmt.Printf("Handlers[%d]=%s\n", j, inputDevices[i].handlers[j])
+		fmt.Printf("%s (%s)\n", inputDevices[i].name, inputDevices[i].uniq)
+	}
+	fmt.Println("###                        ###")
+
+	/*
+		opts := MQTT.NewClientOptions().AddBroker("tcp://mqtt.eclipseprojects.io:1883")
+		opts.SetClientID("go-simple")
+		opts.SetDefaultPublishHandler(f)
+
+		c := MQTT.NewClient(opts)
+		if token := c.Connect(); token.Wait() && token.Error() != nil {
+			panic(token.Error())
 		}
-		fmt.Println("///   ///   ///")
-	}
 
-	opts := MQTT.NewClientOptions().AddBroker("tcp://mqtt.eclipseprojects.io:1883")
-	opts.SetClientID("go-simple")
-	opts.SetDefaultPublishHandler(f)
+		if token := c.Subscribe("go-mqtt/sample", 0, nil); token.Wait() && token.Error() != nil {
+			fmt.Println(token.Error())
+			os.Exit(1)
+		}
 
-	c := MQTT.NewClient(opts)
-	if token := c.Connect(); token.Wait() && token.Error() != nil {
-		panic(token.Error())
-	}
+		for i := 0; i < 5; i++ {
+			text := fmt.Sprintf("this is msg #%d!", i)
+			token := c.Publish("go-mqtt/sample", 0, false, text)
+			token.Wait()
+		}*/
 
-	if token := c.Subscribe("go-mqtt/sample", 0, nil); token.Wait() && token.Error() != nil {
-		fmt.Println(token.Error())
-		os.Exit(1)
-	}
+	inputDevices = []InputDevice{}
 
-	for i := 0; i < 5; i++ {
-		text := fmt.Sprintf("this is msg #%d!", i)
-		token := c.Publish("go-mqtt/sample", 0, false, text)
-		token.Wait()
-	}
+	var currentLoops []string
 
-	if len(inputDevices) > 0 {
-		for i := range inputDevices[0].handlers {
-			if strings.ContainsAny(inputDevices[0].handlers[i], "event") {
-				readLoop(inputDevices[0].handlers[i], inputDevices[0].phys)
+	for {
+		newInputDevices := GetInputDevices()
+
+		if len(inputDevices) != len(newInputDevices) {
+			inputDevices = newInputDevices
+			for i := range inputDevices {
+				if !contains(currentLoops, inputDevices[i].uniq) {
+					for j := range inputDevices[i].handlers {
+						if strings.Contains(inputDevices[i].handlers[j], "event") {
+							fmt.Printf("NEW DEVICE READING: %s (%s)\n", inputDevices[i].name, inputDevices[i].uniq)
+							go readLoop(inputDevices[i].handlers[j], inputDevices[i].uniq)
+						}
+					}
+				}
 			}
 		}
 	}
 
-	if token := c.Unsubscribe("go-mqtt/sample"); token.Wait() && token.Error() != nil {
+	/*if token := c.Unsubscribe("go-mqtt/sample"); token.Wait() && token.Error() != nil {
 		fmt.Println(token.Error())
 		os.Exit(1)
 	}
 
-	c.Disconnect(250)
+	c.Disconnect(250)*/
+}
+
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+	return false
 }
 
 func readLoop(event string, physicalAddress string) {
@@ -87,111 +109,11 @@ func readLoop(event string, physicalAddress string) {
 
 		if len(input) > 0 {
 			if input[len(input)-1] == 28 {
-				fmt.Printf("%s %s\n", physicalAddress, convertSequenceToString(input))
+				fmt.Printf("%s %s\n", physicalAddress, ConvertSequenceToString(input))
 				input = []uint16{}
 			}
 		}
 
 		//fmt.Printf("type: %x\ncode: %d\nvalue: %d\n", typ, code, value)
 	}
-}
-
-func convertSequenceToString(keycodeSequence []uint16) string {
-	var result string = ""
-
-	var uppercase bool = false
-	for i := range keycodeSequence {
-		var char string = ""
-
-		if keycodeSequence[i] == KEY_LEFTSHIFT {
-			uppercase = true
-			continue
-		}
-
-		switch keycodeSequence[i] {
-		case KEY_A:
-			char = "a"
-		case KEY_B:
-			char = "b"
-		case KEY_C:
-			char = "c"
-		case KEY_D:
-			char = "d"
-		case KEY_E:
-			char = "e"
-		case KEY_F:
-			char = "f"
-		case KEY_G:
-			char = "g"
-		case KEY_H:
-			char = "h"
-		case KEY_I:
-			char = "i"
-		case KEY_J:
-			char = "j"
-		case KEY_K:
-			char = "k"
-		case KEY_L:
-			char = "l"
-		case KEY_M:
-			char = "m"
-		case KEY_N:
-			char = "n"
-		case KEY_O:
-			char = "o"
-		case KEY_P:
-			char = "p"
-		case KEY_Q:
-			char = "q"
-		case KEY_R:
-			char = "r"
-		case KEY_S:
-			char = "s"
-		case KEY_T:
-			char = "t"
-		case KEY_U:
-			char = "u"
-		case KEY_V:
-			char = "v"
-		case KEY_W:
-			char = "w"
-		case KEY_X:
-			char = "x"
-		case KEY_Y:
-			char = "y"
-		case KEY_Z:
-			char = "z"
-		case KEY_1:
-			char = "1"
-		case KEY_2:
-			char = "2"
-		case KEY_3:
-			char = "3"
-		case KEY_4:
-			char = "4"
-		case KEY_5:
-			char = "5"
-		case KEY_6:
-			char = "6"
-		case KEY_7:
-			char = "7"
-		case KEY_8:
-			char = "8"
-		case KEY_9:
-			char = "9"
-		case KEY_0:
-			char = "0"
-		case KEY_MINUS:
-			char = "-"
-		}
-
-		if uppercase == true {
-			char = strings.ToUpper(char)
-			uppercase = false
-		}
-
-		result += char
-	}
-
-	return result
 }

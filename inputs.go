@@ -10,7 +10,7 @@ import (
 
 type InputDevice struct {
 	name     string
-	phys     string
+	uniq     string
 	handlers []string
 }
 
@@ -33,7 +33,7 @@ func ParseInputDevice(device string) InputDevice {
 	deviceLines := regex.Split(device, -1)
 
 	isNameSet := false
-	isPhysSet := false
+	isUniqSet := false
 	areHandlersSet := false
 
 	for i := range deviceLines {
@@ -45,11 +45,11 @@ func ParseInputDevice(device string) InputDevice {
 				continue
 			}
 		}
-		if !isPhysSet {
-			val, success := ParseInputDevicePhys(deviceLines[i])
+		if !isUniqSet {
+			val, success := ParseInputDeviceUniq(deviceLines[i])
 			if success {
-				result.phys = val
-				isPhysSet = true
+				result.uniq = val
+				isUniqSet = true
 				continue
 			}
 		}
@@ -100,10 +100,10 @@ func ParseInputDeviceName(line string) (string, bool) {
 	return result, true
 }
 
-func ParseInputDevicePhys(line string) (string, bool) {
+func ParseInputDeviceUniq(line string) (string, bool) {
 	var result = ""
 
-	parts := strings.Split(line, "Phys=")
+	parts := strings.Split(line, "Uniq=")
 	if len(parts) < 2 {
 		return result, false
 	}
