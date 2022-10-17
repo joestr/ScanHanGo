@@ -9,12 +9,20 @@ import (
 	"strings"
 )
 
+const BrokerAddress = "tcp://leebapp1.leeb.cc:1883"
+const BrokerChannel = "leeb/gnesau/verladung/packagelistener"
+
 var f MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Message) {
 	fmt.Printf("TOPIC: %s\n", msg.Topic())
 	fmt.Printf("MSG: %s\n", msg.Payload())
 }
 
 func main() {
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		panic(err)
+	}
 
 	inputDevices := GetInputDevices()
 
@@ -24,26 +32,14 @@ func main() {
 	}
 	fmt.Println("###                        ###")
 
-	/*
-		opts := MQTT.NewClientOptions().AddBroker("tcp://mqtt.eclipseprojects.io:1883")
-		opts.SetClientID("go-simple")
-		opts.SetDefaultPublishHandler(f)
+	opts := MQTT.NewClientOptions().AddBroker(BrokerAddress)
+	opts.SetClientID("ScanHanGo_" + hostname)
+	opts.SetDefaultPublishHandler(f)
 
-		c := MQTT.NewClient(opts)
-		if token := c.Connect(); token.Wait() && token.Error() != nil {
-			panic(token.Error())
-		}
-
-		if token := c.Subscribe("go-mqtt/sample", 0, nil); token.Wait() && token.Error() != nil {
-			fmt.Println(token.Error())
-			os.Exit(1)
-		}
-
-		for i := 0; i < 5; i++ {
-			text := fmt.Sprintf("this is msg #%d!", i)
-			token := c.Publish("go-mqtt/sample", 0, false, text)
-			token.Wait()
-		}*/
+	c := MQTT.NewClient(opts)
+	if token := c.Connect(); token.Wait() && token.Error() != nil {
+		panic(token.Error())
+	}
 
 	inputDevices = []InputDevice{}
 
@@ -59,20 +55,13 @@ func main() {
 					for j := range inputDevices[i].handlers {
 						if strings.Contains(inputDevices[i].handlers[j], "event") {
 							fmt.Printf("NEW DEVICE READING: %s (%s)\n", inputDevices[i].name, inputDevices[i].uniq)
-							go readLoop(inputDevices[i].handlers[j], inputDevices[i].uniq)
+							go readLoop(inputDevices[i].handlers[j], inputDevices[i].uniq, c)
 						}
 					}
 				}
 			}
 		}
 	}
-
-	/*if token := c.Unsubscribe("go-mqtt/sample"); token.Wait() && token.Error() != nil {
-		fmt.Println(token.Error())
-		os.Exit(1)
-	}
-
-	c.Disconnect(250)*/
 }
 
 func contains(s []string, str string) bool {
@@ -84,7 +73,7 @@ func contains(s []string, str string) bool {
 	return false
 }
 
-func readLoop(event string, physicalAddress string) {
+func readLoop(event string, physicalAddress string, mqttClient MQTT.Client) {
 	var input []uint16
 	f, err := os.Open("/dev/input/" + event)
 	if err != nil {
@@ -94,10 +83,6 @@ func readLoop(event string, physicalAddress string) {
 	b := make([]byte, 24)
 	for {
 		f.Read(b)
-		//sec := binary.LittleEndian.Uint64(b[0:8])
-		//usec := binary.LittleEndian.Uint64(b[8:16])
-		//t := time.Unix(int64(sec), int64(usec))
-		//fmt.Println(t)
 		var value int32
 		typ := binary.LittleEndian.Uint16(b[16:18])
 		code := binary.LittleEndian.Uint16(b[18:20])
@@ -109,11 +94,11 @@ func readLoop(event string, physicalAddress string) {
 
 		if len(input) > 0 {
 			if input[len(input)-1] == 28 {
-				fmt.Printf("%s %s\n", physicalAddress, ConvertSequenceToString(input))
+				text := ConvertSequenceToString(input)
+				fmt.Printf("%s %s\n", physicalAddress, text)
+				mqttClient.Publish(BrokerChannel, 0, false, text)
 				input = []uint16{}
 			}
 		}
-
-		//fmt.Printf("type: %x\ncode: %d\nvalue: %d\n", typ, code, value)
 	}
 }
