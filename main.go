@@ -12,7 +12,7 @@ import (
 )
 
 const BrokerAddress = "tcp://leebapp1.leeb.cc:1883"
-const BrokerChannel = "leeb/gnesau/verladung/packagelistener"
+const BrokerChannel = "leeb/gnesau/verladung/scanner"
 
 var f MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Message) {
 	fmt.Printf("TOPIC: %s\n", msg.Topic())
