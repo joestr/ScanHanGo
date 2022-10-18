@@ -5,8 +5,10 @@ import (
 	"encoding/binary"
 	"fmt"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
+	evdev "github.com/gvalkov/golang-evdev"
 	"os"
 	"strings"
+	"syscall"
 )
 
 const BrokerAddress = "tcp://leebapp1.leeb.cc:1883"
@@ -79,7 +81,9 @@ func readLoop(event string, physicalAddress string, mqttClient MQTT.Client) {
 	if err != nil {
 		panic(err)
 	}
+	syscall.Syscall(syscall.SYS_IOCTL, f.Fd(), evdev.EVIOCGRAB, 1)
 	defer f.Close()
+	defer syscall.Syscall(syscall.SYS_IOCTL, f.Fd(), evdev.EVIOCGRAB, 0)
 	b := make([]byte, 24)
 	for {
 		f.Read(b)
