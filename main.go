@@ -96,7 +96,7 @@ func readLoop(event string, physicalAddress string, mqttClient MQTT.Client) {
 			if input[len(input)-1] == 28 {
 				text := ConvertSequenceToString(input)
 				fmt.Printf("%s %s\n", physicalAddress, text)
-				mqttClient.Publish(BrokerChannel, 0, false, text)
+				mqttClient.Publish(BrokerChannel+"/"+physicalAddress, 0, false, text)
 				input = []uint16{}
 			}
 		}
