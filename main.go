@@ -11,15 +11,23 @@ import (
 	"syscall"
 )
 
-const BrokerAddress = "tcp://leebapp1.leeb.cc:1883"
-const BrokerChannel = "leeb/gnesau/verladung/scanner"
-
 var f MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Message) {
 	fmt.Printf("TOPIC: %s\n", msg.Topic())
 	fmt.Printf("MSG: %s\n", msg.Payload())
 }
 
 func main() {
+
+	args := os.Args
+
+	if len(args) == 1 {
+		fmt.Println("Invalid usage! Use:")
+		fmt.Println(args[0] + " <brokeraddress> <topic prefix>")
+		os.Exit(1)
+	}
+
+	brokeraddress := args[1]
+	topicprefix := args[2]
 
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -34,12 +42,12 @@ func main() {
 	}
 	fmt.Println("###                        ###")
 
-	opts := MQTT.NewClientOptions().AddBroker(BrokerAddress)
+	opts := MQTT.NewClientOptions().AddBroker(brokeraddress)
 	opts.SetClientID("ScanHanGo_" + hostname)
 	opts.SetDefaultPublishHandler(f)
 
-	c := MQTT.NewClient(opts)
-	if token := c.Connect(); token.Wait() && token.Error() != nil {
+	client := MQTT.NewClient(opts)
+	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
 
@@ -57,7 +65,7 @@ func main() {
 					for j := range inputDevices[i].handlers {
 						if strings.Contains(inputDevices[i].handlers[j], "event") {
 							fmt.Printf("NEW DEVICE READING: %s (%s)\n", inputDevices[i].name, inputDevices[i].uniq)
-							go readLoop(inputDevices[i].handlers[j], inputDevices[i].uniq, c)
+							go readLoop(inputDevices[i].handlers[j], inputDevices[i].uniq, client, topicprefix)
 						}
 					}
 				}
@@ -75,7 +83,7 @@ func contains(s []string, str string) bool {
 	return false
 }
 
-func readLoop(event string, physicalAddress string, mqttClient MQTT.Client) {
+func readLoop(event string, physicalAddress string, mqttClient MQTT.Client, topicPrefix string) {
 	var input []uint16
 	f, err := os.Open("/dev/input/" + event)
 	if err != nil {
@@ -101,7 +109,7 @@ func readLoop(event string, physicalAddress string, mqttClient MQTT.Client) {
 				text := ConvertSequenceToString(input)
 				fmt.Printf("%s %s\n", physicalAddress, text)
 				physicalAddressForMqtt := strings.Replace(physicalAddress, ":", "", 5)
-				mqttClient.Publish(BrokerChannel+"/"+physicalAddressForMqtt+"/scanned", 0, false, text)
+				mqttClient.Publish(topicPrefix+"/"+physicalAddressForMqtt+"/scanned", 0, false, text)
 				input = []uint16{}
 			}
 		}
